@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "context-memory.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "context-memory.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  DATABASE_POOL_SIZE: {{ .Values.config.databasePoolSize | quote }}
+  DATABASE_MAX_OVERFLOW: {{ .Values.config.databaseMaxOverflow | quote }}
+  REDIS_POOL_SIZE: {{ .Values.config.redisPoolSize | quote }}
+  JWT_ALGORITHM: {{ .Values.config.jwtAlgorithm | quote }}
+  JWT_ISSUER: {{ .Values.config.jwtIssuer | quote }}
+  JWT_AUDIENCE: {{ .Values.config.jwtAudience | quote }}
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: {{ .Values.config.jwtAccessTokenExpireMinutes | quote }}
+  OTLP_SERVICE_NAME: {{ .Values.config.otlpServiceName | default "context-memory" | quote }}
+  MAX_MEMORIES_PER_TENANT: {{ .Values.config.maxMemoriesPerTenant | quote }}
+  MAX_SESSIONS_PER_TENANT: {{ .Values.config.maxSessionsPerTenant | quote }}
+  DEFAULT_RETENTION_DAYS: {{ .Values.config.defaultRetentionDays | quote }}
+  RATE_LIMIT_ENABLED: {{ .Values.config.rateLimitEnabled | quote }}
+  RATE_LIMIT_REQUESTS_PER_MINUTE: {{ .Values.config.rateLimitRequestsPerMinute | quote }}

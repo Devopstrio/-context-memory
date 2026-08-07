@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  context-memory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: context-memory
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/context_memory
+      - DATABASE_POOL_SIZE=10
+      - DATABASE_MAX_OVERFLOW=5
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_POOL_SIZE=10
+      - JWT_SECRET_KEY=super-secret-enterprise-jwt-key-32bytes-minimum
+      - JWT_ALGORITHM=HS256
+      - JWT_ISSUER=https://auth.enterprise.internal
+      - JWT_AUDIENCE=context-memory-api
+      - JWT_EXPIRE_MINUTES=60
+      - LOG_LEVEL=INFO
+      - OTLP_EXPORTER_ENDPOINT=
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - context-memory-network
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: context-memory-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=context_memory
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./alembic/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d context_memory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - context-memory-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: context-memory-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - context-memory-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  context-memory-network:
+    driver: bridge

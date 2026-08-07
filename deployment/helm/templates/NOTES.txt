@@ -1,0 +1,8 @@
+Thank you for installing {{ .Chart.Name }}.
+Your release is named {{ .Release.Name }}.
+
+To access the service, port-forward:
+  kubectl port-forward service/{{ include "context-memory.fullname" . }} 8000:8000
+
+Then visit http://localhost:8000/health/live for health status.
+Metrics are available at http://localhost:8000/metrics.

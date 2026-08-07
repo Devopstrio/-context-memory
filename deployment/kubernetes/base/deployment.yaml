@@ -1,0 +1,361 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: context-memory
+  labels:
+    name: context-memory
+    environment: production
+    app.kubernetes.io/name: context-memory
+    app.kubernetes.io/part-of: context-memory
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: context-memory-config
+  namespace: context-memory
+  labels:
+    app: context-memory
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  DATABASE_POOL_SIZE: "20"
+  DATABASE_MAX_OVERFLOW: "10"
+  REDIS_POOL_SIZE: "10"
+  JWT_ALGORITHM: "HS256"
+  JWT_ISSUER: "https://auth.enterprise.internal"
+  JWT_AUDIENCE: "context-memory-api"
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  OTLP_SERVICE_NAME: "context-memory"
+  MAX_MEMORIES_PER_TENANT: "100000"
+  MAX_SESSIONS_PER_TENANT: "10000"
+  DEFAULT_RETENTION_DAYS: "90"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "1000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: context-memory-secrets
+  namespace: context-memory
+  labels:
+    app: context-memory
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql+asyncpg://context_memory_user:changeme@postgres-service:5432/context_memory"
+  REDIS_URL: "redis://redis-service:6379/0"
+  JWT_SECRET_KEY: "super-secret-enterprise-jwt-key-32bytes-minimum"
+  ENCRYPTION_KEY: "context-memory-encryption-key-32bytes-here"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: context-memory
+  namespace: context-memory
+  labels:
+    app: context-memory
+    app.kubernetes.io/name: context-memory
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/part-of: context-memory
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: context-memory
+  template:
+    metadata:
+      labels:
+        app: context-memory
+        app.kubernetes.io/name: context-memory
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: context-memory-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: context-memory
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: context-memory
+      containers:
+        - name: context-memory
+          image: ghcr.io/devopstrio/context-memory:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: context-memory-config
+            - secretRef:
+                name: context-memory-secrets
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/logs
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: logs
+          emptyDir:
+            sizeLimit: 200Mi
+        - name: data
+          emptyDir:
+            sizeLimit: 100Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: context-memory
+  namespace: context-memory
+  labels:
+    app: context-memory
+    app.kubernetes.io/name: context-memory
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+spec:
+  type: ClusterIP
+  selector:
+    app: context-memory
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: context-memory-sa
+  namespace: context-memory
+  labels:
+    app: context-memory
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: context-memory-role
+  namespace: context-memory
+  labels:
+    app: context-memory
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+    resourceNames: ["context-memory-config", "context-memory-secrets"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: context-memory-rolebinding
+  namespace: context-memory
+  labels:
+    app: context-memory
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: context-memory-role
+subjects:
+  - kind: ServiceAccount
+    name: context-memory-sa
+    namespace: context-memory
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: context-memory-pdb
+  namespace: context-memory
+  labels:
+    app: context-memory
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: context-memory
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: context-memory-network-policy
+  namespace: context-memory
+  labels:
+    app: context-memory
+spec:
+  podSelector:
+    matchLabels:
+      app: context-memory
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - port: 8000
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 8000
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - port: 4317
+          protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: context-memory-hpa
+  namespace: context-memory
+  labels:
+    app: context-memory
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: context-memory
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
