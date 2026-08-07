@@ -1,0 +1,76 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    name: Quality & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run Ruff Check & Format Check
+        run: |
+          ruff check src/ tests/
+          ruff format --check src/ tests/
+
+      - name: Run Static Type Checking (Mypy)
+        run: |
+          mypy src/
+
+      - name: Run Security Audit (Bandit)
+        run: |
+          bandit -r src/ -c pyproject.toml
+
+      - name: Run Pytest Suite
+        run: |
+          pytest tests/ --cov=src/context_memory --cov-report=xml
+
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: actions/setup-docker-action@v3
+        with:
+          daemon-config: |
+            {
+              "debug": true
+            }
+
+      - name: Build Docker Image
+        run: |
+          docker build -t context-memory:test .
+
+  helm-lint:
+    name: Helm Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm Chart
+        run: |
+          helm lint deployment/helm

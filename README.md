@@ -59,7 +59,7 @@ An enterprise-grade, multi-tenant context memory platform for Large Language Mod
 
 1. **Clone Repository & Environment Setup**:
    ```bash
-   git clone https://github.com/Devopstrio/context-memory.git
+   git clone https://github.com/Devopstrio/-context-memory.git
    cd context-memory
    python -m venv .venv
    source .venv/bin/activate

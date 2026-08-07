@@ -8,9 +8,9 @@ maintainers:
   - name: Devopstrio
     email: engineering@devopstrio.co.uk
     url: https://github.com/Devopstrio
-home: https://github.com/Devopstrio/context-memory
+home: https://github.com/Devopstrio/-context-memory
 sources:
-  - https://github.com/Devopstrio/context-memory
+  - https://github.com/Devopstrio/-context-memory
 keywords:
   - context-memory
   - llm

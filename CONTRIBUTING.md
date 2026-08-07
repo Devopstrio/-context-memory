@@ -19,7 +19,7 @@ All contributors are expected to adhere to team standards and maintain professio
 
 ### 2. Environment Setup
 ```bash
-git clone https://github.com/Devopstrio/context-memory.git
+git clone https://github.com/Devopstrio/-context-memory.git
 cd context-memory
 python -m venv .venv
 source .venv/bin/activate
