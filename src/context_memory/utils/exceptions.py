@@ -150,24 +150,27 @@ class ServiceUnavailableError(AppException):
         )
 
 
-async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+async def app_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle custom application exceptions."""
     from context_memory.telemetry.metrics import ERROR_COUNT
 
-    ERROR_COUNT.labels(
-        error_type=exc.error_code.value,
-        endpoint=request.url.path,
-    ).inc()
+    if isinstance(exc, AppException):
+        ERROR_COUNT.labels(
+            error_type=exc.error_code.value,
+            endpoint=request.url.path,
+        ).inc()
 
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=ErrorResponse(
-            error_code=exc.error_code,
-            message=exc.message,
-            details=exc.details,
-            correlation_id=getattr(request.state, "correlation_id", None),
-        ).model_dump(),
-    )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(
+                error_code=exc.error_code,
+                message=exc.message,
+                details=exc.details,
+                correlation_id=getattr(request.state, "correlation_id", None),
+            ).model_dump(),
+        )
+
+    return await generic_exception_handler(request, exc)
 
 
 async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:

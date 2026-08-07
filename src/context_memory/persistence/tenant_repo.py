@@ -73,7 +73,8 @@ class TenantRepository:
             update(Tenant)
             .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted.is_(False)))
             .values(is_deleted=True, status="deleted")
+            .returning(Tenant.id)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return bool(result.rowcount > 0)
+        return len(result.scalars().all()) > 0

@@ -3,7 +3,7 @@
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 import structlog
 from sqlalchemy import and_, delete, func, select, update
@@ -131,17 +131,18 @@ class MemoryRepository:
                 is_deleted=True,
                 updated_at=datetime.now(UTC),
             )
+            .returning(Memory.id)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return bool(result.rowcount > 0)
+        return len(result.scalars().all()) > 0
 
     async def hard_delete(self, memory_id: uuid.UUID, tenant_id: str) -> bool:
         """Permanently delete a memory record."""
-        stmt = delete(Memory).where(and_(Memory.id == memory_id, Memory.tenant_id == tenant_id))
+        stmt = delete(Memory).where(and_(Memory.id == memory_id, Memory.tenant_id == tenant_id)).returning(Memory.id)
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return bool(result.rowcount > 0)
+        return len(result.scalars().all()) > 0
 
     async def record_access(self, memory_id: uuid.UUID, tenant_id: str) -> None:
         """Record a memory access event."""
@@ -166,7 +167,7 @@ class MemoryRepository:
         result = await self.session.execute(
             select(func.count(Memory.id)).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted.is_(False)))
         )
-        return cast(int, result.scalar_one())
+        return result.scalar_one()
 
     async def create_embedding(self, embedding: MemoryEmbedding) -> MemoryEmbedding:
         """Create or update a memory embedding."""
@@ -194,7 +195,7 @@ class MemoryRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return cast(MemoryEmbedding, result.scalar_one())
+        return result.scalar_one()
 
     async def get_embedding(self, memory_id: uuid.UUID) -> MemoryEmbedding | None:
         """Retrieve embedding for a memory."""
@@ -249,10 +250,11 @@ class MemoryRepository:
                 )
             )
             .values(is_deleted=True, updated_at=now)
+            .returning(Memory.id)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        count = cast(int, result.rowcount)
+        count = len(result.scalars().all())
         if count > 0:
             logger.info("Cleaned up expired memories", tenant_id=tenant_id, count=count)
         return count
@@ -262,9 +264,9 @@ class MemoryRepository:
         """Calculate cosine similarity between two vectors."""
         if not a or not b or len(a) != len(b):
             return 0.0
-        dot_product = sum(x * y for x, y in zip(a, b, strict=True))
-        norm_a = sum(x**2 for x in a) ** 0.5
-        norm_b = sum(y**2 for y in b) ** 0.5
+        dot_product = float(sum(x * y for x, y in zip(a, b, strict=True)))
+        norm_a = float(sum(x**2 for x in a) ** 0.5)
+        norm_b = float(sum(y**2 for y in b) ** 0.5)
         if norm_a == 0.0 or norm_b == 0.0:
             return 0.0
-        return dot_product / (norm_a * norm_b)
+        return float(dot_product / (norm_a * norm_b))

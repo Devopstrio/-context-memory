@@ -2,7 +2,6 @@
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import cast
 
 import structlog
 from sqlalchemy import and_, func, select, update
@@ -46,7 +45,7 @@ class SessionRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        created_session = cast(Session, result.scalar_one())
+        created_session = result.scalar_one()
         logger.info(
             "Session upserted",
             tenant_id=session.tenant_id,
@@ -119,10 +118,11 @@ class SessionRepository:
                 status="archived",
                 updated_at=datetime.now(UTC),
             )
+            .returning(Session.id)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return bool(result.rowcount > 0)
+        return len(result.scalars().all()) > 0
 
     async def update_activity(self, tenant_id: str, session_id: str) -> None:
         """Update last active timestamp for a session."""
@@ -150,7 +150,7 @@ class SessionRepository:
                 )
             )
         )
-        return cast(int, result.scalar_one())
+        return result.scalar_one()
 
     async def cleanup_expired(self, tenant_id: str) -> int:
         """Archive expired sessions."""
@@ -166,10 +166,11 @@ class SessionRepository:
                 )
             )
             .values(is_archived=True, status="expired", updated_at=now)
+            .returning(Session.id)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        count = cast(int, result.rowcount)
+        count = len(result.scalars().all())
         if count > 0:
             logger.info("Cleaned up expired sessions", tenant_id=tenant_id, count=count)
         return count
