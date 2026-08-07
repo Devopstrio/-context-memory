@@ -16,6 +16,7 @@ from fastapi import (
     status,
 )
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from context_memory.config.settings import get_settings
@@ -215,7 +216,7 @@ async def readiness_check(
     """Kubernetes readiness probe endpoint."""
     checks: dict[str, str] = {}
     try:
-        await db.execute("SELECT 1")
+        await db.execute(text("SELECT 1"))
         checks["database"] = "UP"
     except Exception as e:
         checks["database"] = f"DOWN: {str(e)}"
@@ -380,7 +381,7 @@ async def list_session_memories(
     page: int = Query(default=1, ge=1, description="Page number"),
     size: int = Query(default=20, ge=1, le=100, description="Page size"),
     memory_type: str | None = Query(default=None, description="Filter by memory type"),
-    request: Request = None,
+    request: Request | None = None,
     claims: TokenPayload = Depends(get_current_user),
     memory_service: MemoryService = Depends(get_memory_service),
 ) -> PaginatedResponse:

@@ -3,6 +3,7 @@
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import structlog
 from sqlalchemy import and_, delete, func, select, update
@@ -40,7 +41,7 @@ class MemoryRepository:
                 and_(
                     Memory.id == memory_id,
                     Memory.tenant_id == tenant_id,
-                    not Memory.is_deleted,
+                    Memory.is_deleted.is_(False),
                 )
             )
         )
@@ -56,7 +57,7 @@ class MemoryRepository:
                 and_(
                     Memory.tenant_id == tenant_id,
                     Memory.session_id == session_id,
-                    not Memory.is_deleted,
+                    Memory.is_deleted.is_(False),
                 )
             )
             .order_by(Memory.created_at.desc())
@@ -69,7 +70,7 @@ class MemoryRepository:
         self, tenant_id: str, memory_type: str | None = None, limit: int = 100, offset: int = 0
     ) -> Sequence[Memory]:
         """Retrieve memories for a tenant with optional type filter."""
-        query = select(Memory).where(and_(Memory.tenant_id == tenant_id, not Memory.is_deleted))
+        query = select(Memory).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted.is_(False)))
         if memory_type:
             query = query.where(Memory.memory_type == memory_type)
         query = query.order_by(Memory.updated_at.desc()).limit(limit).offset(offset)
@@ -81,11 +82,11 @@ class MemoryRepository:
         memory_id: uuid.UUID,
         tenant_id: str,
         content: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
         importance: float | None = None,
     ) -> Memory | None:
         """Update a memory's content, metadata, or importance."""
-        values = {"updated_at": datetime.now(UTC)}
+        values: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if content is not None:
             import hashlib
 
@@ -102,7 +103,7 @@ class MemoryRepository:
                 and_(
                     Memory.id == memory_id,
                     Memory.tenant_id == tenant_id,
-                    not Memory.is_deleted,
+                    Memory.is_deleted.is_(False),
                 )
             )
             .values(**values)
@@ -123,7 +124,7 @@ class MemoryRepository:
                 and_(
                     Memory.id == memory_id,
                     Memory.tenant_id == tenant_id,
-                    not Memory.is_deleted,
+                    Memory.is_deleted.is_(False),
                 )
             )
             .values(
@@ -133,17 +134,14 @@ class MemoryRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        deleted = result.rowcount > 0
-        if deleted:
-            logger.info("Memory soft deleted", memory_id=str(memory_id), tenant_id=tenant_id)
-        return deleted
+        return bool(result.rowcount > 0)
 
     async def hard_delete(self, memory_id: uuid.UUID, tenant_id: str) -> bool:
         """Permanently delete a memory record."""
         stmt = delete(Memory).where(and_(Memory.id == memory_id, Memory.tenant_id == tenant_id))
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return result.rowcount > 0
+        return bool(result.rowcount > 0)
 
     async def record_access(self, memory_id: uuid.UUID, tenant_id: str) -> None:
         """Record a memory access event."""
@@ -166,9 +164,9 @@ class MemoryRepository:
     async def count_by_tenant(self, tenant_id: str) -> int:
         """Count total non-deleted memories for a tenant."""
         result = await self.session.execute(
-            select(func.count(Memory.id)).where(and_(Memory.tenant_id == tenant_id, not Memory.is_deleted))
+            select(func.count(Memory.id)).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted.is_(False)))
         )
-        return result.scalar_one()
+        return cast(int, result.scalar_one())
 
     async def create_embedding(self, embedding: MemoryEmbedding) -> MemoryEmbedding:
         """Create or update a memory embedding."""
@@ -196,7 +194,7 @@ class MemoryRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return result.scalar_one()
+        return cast(MemoryEmbedding, result.scalar_one())
 
     async def get_embedding(self, memory_id: uuid.UUID) -> MemoryEmbedding | None:
         """Retrieve embedding for a memory."""
@@ -217,7 +215,7 @@ class MemoryRepository:
             .where(
                 and_(
                     Memory.tenant_id == tenant_id,
-                    not Memory.is_deleted,
+                    Memory.is_deleted.is_(False),
                 )
             )
         )
@@ -226,8 +224,10 @@ class MemoryRepository:
         result = await self.session.execute(query)
         rows = result.all()
 
-        scored_results = []
-        for memory, embedding in rows:
+        scored_results: list[tuple[Memory, float]] = []
+        for row in rows:
+            memory: Memory = row[0]
+            embedding: MemoryEmbedding | None = row[1]
             if embedding and embedding.embedding_vector:
                 similarity = self._cosine_similarity(query_embedding, embedding.embedding_vector)
                 scored_results.append((memory, similarity))
@@ -245,14 +245,14 @@ class MemoryRepository:
                     Memory.tenant_id == tenant_id,
                     Memory.expires_at.isnot(None),
                     Memory.expires_at <= now,
-                    not Memory.is_deleted,
+                    Memory.is_deleted.is_(False),
                 )
             )
             .values(is_deleted=True, updated_at=now)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        count = result.rowcount
+        count = cast(int, result.rowcount)
         if count > 0:
             logger.info("Cleaned up expired memories", tenant_id=tenant_id, count=count)
         return count

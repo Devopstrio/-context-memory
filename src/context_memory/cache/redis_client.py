@@ -3,6 +3,7 @@
 import asyncio
 import json
 import time
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
 
@@ -46,7 +47,7 @@ class RedisCircuitBreaker:
         self._half_open_requests = 0
         self._lock = asyncio.Lock()
 
-    async def call(self, func, *args, **kwargs) -> Any:
+    async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection."""
         async with self._lock:
             if self._state == CircuitState.OPEN:
@@ -101,8 +102,8 @@ class RedisClient:
     def __init__(self, redis_url: str | None = None) -> None:
         settings = get_settings()
         self.redis_url = redis_url or settings.redis_url
-        self._pool: aioredis.ConnectionPool | None = None
-        self._client: aioredis.Redis | None = None
+        self._pool: aioredis.ConnectionPool[Any] | None = None
+        self._client: aioredis.Redis[Any] | None = None
         self._fallback_store: dict[str, tuple[str, float]] = {}
         self._use_redis = False
         self.circuit_breaker = RedisCircuitBreaker(
@@ -181,7 +182,7 @@ class RedisClient:
         if not self._use_redis or not self._client:
             return self._get_from_fallback(key)
         try:
-            value = await self.circuit_breaker.call(self._client.get, key)
+            value: str | None = await self.circuit_breaker.call(self._client.get, key)
             return value
         except (RedisUnavailableError, Exception) as e:
             logger.warning("Redis get failed, using fallback", key=key, error=str(e))
@@ -219,7 +220,8 @@ class RedisClient:
         if value is None:
             return None
         try:
-            return json.loads(value)
+            res: dict[str, Any] = json.loads(value)
+            return res
         except json.JSONDecodeError as e:
             logger.error("Failed to decode JSON from cache", key=key, error=str(e))
             return None

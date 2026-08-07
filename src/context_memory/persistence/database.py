@@ -1,6 +1,7 @@
 """Database configuration and session management."""
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -45,7 +46,12 @@ class DatabaseSession:
         self._session = async_session_factory()
         return self._session
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         if self._session is None:
             return
         try:

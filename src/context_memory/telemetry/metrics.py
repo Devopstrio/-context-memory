@@ -1,5 +1,6 @@
 """Prometheus metrics for Context Memory service."""
 
+from fastapi import FastAPI
 from prometheus_client import Counter, Gauge, Histogram, Info
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -113,7 +114,7 @@ SERVICE_INFO = Info(
 )
 
 
-def setup_metrics(app) -> None:
+def setup_metrics(app: FastAPI) -> None:
     """Configure Prometheus metrics instrumentation for FastAPI app."""
     from context_memory.config.settings import get_settings
 

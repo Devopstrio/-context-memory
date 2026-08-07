@@ -1,6 +1,7 @@
 """Repository for Tenant database operations."""
 
 from collections.abc import Sequence
+from typing import Any
 
 import structlog
 from sqlalchemy import and_, select, update
@@ -28,22 +29,25 @@ class TenantRepository:
     async def get_by_id(self, tenant_id: str) -> Tenant | None:
         """Retrieve a tenant by tenant_id."""
         result = await self.session.execute(
-            select(Tenant).where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
+            select(Tenant).where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted.is_(False)))
         )
         return result.scalar_one_or_none()
 
     async def get_active_tenants(self, limit: int = 100, offset: int = 0) -> Sequence[Tenant]:
         """Retrieve all active tenants."""
         result = await self.session.execute(
-            select(Tenant).where(and_(Tenant.status == "active", not Tenant.is_deleted)).limit(limit).offset(offset)
+            select(Tenant)
+            .where(and_(Tenant.status == "active", Tenant.is_deleted.is_(False)))
+            .limit(limit)
+            .offset(offset)
         )
         return result.scalars().all()
 
-    async def update_settings(self, tenant_id: str, settings: dict) -> Tenant | None:
+    async def update_settings(self, tenant_id: str, settings: dict[str, Any]) -> Tenant | None:
         """Update tenant settings."""
         stmt = (
             update(Tenant)
-            .where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
+            .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted.is_(False)))
             .values(settings=settings)
             .returning(Tenant)
         )
@@ -55,7 +59,7 @@ class TenantRepository:
         """Update tenant status."""
         stmt = (
             update(Tenant)
-            .where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
+            .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted.is_(False)))
             .values(status=status)
             .returning(Tenant)
         )
@@ -67,9 +71,9 @@ class TenantRepository:
         """Soft delete a tenant."""
         stmt = (
             update(Tenant)
-            .where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
+            .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted.is_(False)))
             .values(is_deleted=True, status="deleted")
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return result.rowcount > 0
+        return bool(result.rowcount > 0)

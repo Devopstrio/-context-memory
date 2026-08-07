@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import cast
 
 import structlog
 from sqlalchemy import and_, func, select, update
@@ -45,7 +46,7 @@ class SessionRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        created_session = result.scalar_one()
+        created_session = cast(Session, result.scalar_one())
         logger.info(
             "Session upserted",
             tenant_id=session.tenant_id,
@@ -60,7 +61,7 @@ class SessionRepository:
                 and_(
                     Session.tenant_id == tenant_id,
                     Session.session_id == session_id,
-                    not Session.is_archived,
+                    Session.is_archived.is_(False),
                 )
             )
         )
@@ -74,7 +75,7 @@ class SessionRepository:
                 and_(
                     Session.tenant_id == tenant_id,
                     Session.status == "active",
-                    not Session.is_archived,
+                    Session.is_archived.is_(False),
                 )
             )
             .order_by(Session.last_active_at.desc())
@@ -121,7 +122,7 @@ class SessionRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return result.rowcount > 0
+        return bool(result.rowcount > 0)
 
     async def update_activity(self, tenant_id: str, session_id: str) -> None:
         """Update last active timestamp for a session."""
@@ -145,11 +146,11 @@ class SessionRepository:
                 and_(
                     Session.tenant_id == tenant_id,
                     Session.status == "active",
-                    not Session.is_archived,
+                    Session.is_archived.is_(False),
                 )
             )
         )
-        return result.scalar_one()
+        return cast(int, result.scalar_one())
 
     async def cleanup_expired(self, tenant_id: str) -> int:
         """Archive expired sessions."""
@@ -161,14 +162,14 @@ class SessionRepository:
                     Session.tenant_id == tenant_id,
                     Session.expires_at.isnot(None),
                     Session.expires_at <= now,
-                    not Session.is_archived,
+                    Session.is_archived.is_(False),
                 )
             )
             .values(is_archived=True, status="expired", updated_at=now)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        count = result.rowcount
+        count = cast(int, result.rowcount)
         if count > 0:
             logger.info("Cleaned up expired sessions", tenant_id=tenant_id, count=count)
         return count

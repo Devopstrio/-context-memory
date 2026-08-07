@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from hashlib import md5
+from typing import Any, cast
 
 import structlog
 from tenacity import (
@@ -177,8 +178,8 @@ class OpenAIEmbedder(Embedder):
                     )
                     raise EmbeddingError(f"OpenAI API error: {response.status_code}")
 
-                data = response.json()
-                embedding = data["data"][0]["embedding"]
+                data: dict[str, Any] = response.json()
+                embedding = cast(list[float], data["data"][0]["embedding"])
                 return embedding
         except httpx.HTTPError as e:
             logger.error("HTTP error generating embedding", error=str(e))
@@ -189,7 +190,7 @@ class OpenAIEmbedder(Embedder):
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for batch of texts."""
-        embeddings = []
+        embeddings: list[list[float]] = []
         batch_size = 20
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
@@ -222,8 +223,8 @@ class OpenAIEmbedder(Embedder):
                 )
                 if response.status_code != 200:
                     raise EmbeddingError(f"OpenAI API error: {response.status_code}")
-                data = response.json()
-                embeddings = [item["embedding"] for item in data["data"]]
+                data: dict[str, Any] = response.json()
+                embeddings = [cast(list[float], item["embedding"]) for item in data["data"]]
                 return embeddings
         except httpx.HTTPError as e:
             raise EmbeddingError(f"HTTP error: {str(e)}") from e
