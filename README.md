@@ -1,6 +1,17 @@
-# Context Memory System
+<div align="center">
 
-An enterprise-grade, multi-tenant context memory platform for Large Language Model (LLM) applications. `context-memory` delivers scalable, low-latency contextual memory management, semantic retrieval via vector embeddings, session context hydration, token budget optimization, and strict governance and compliance policies.
+<img src="https://raw.githubusercontent.com/Devopstrio/.github/main/assets/Browser_logo.png" height="90"/>
+
+<h1>context-memory</h1>
+
+<p><strong>Enterprise Context Engineering Platform - High-Performance Context & Model Router</strong></p>
+
+[![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=flat-square)](https://devopstrio.co.uk)
+[![Python Version](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?style=flat-square)](https://python.org)
+[![Context Router](https://img.shields.io/badge/Context-Router-8B5CF6?style=flat-square)](https://devopstrio.co.uk)
+[![Terraform](https://img.shields.io/badge/IaC-OpenTofu_1.8.5-FF5733?style=flat-square)](https://opentofu.org)
+
+</div>
 
 ---
 
@@ -113,6 +124,6 @@ Security issues should be reported directly to `engineering@devopstrio.co.uk`. D
 
 ---
 
-## License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+<div align="center">
+© 2026 Devopstrio — Engineering the Autonomous Enterprise.
+</div>
