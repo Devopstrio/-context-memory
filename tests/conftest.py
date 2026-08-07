@@ -18,7 +18,10 @@ from context_memory.models.base import Base
 from context_memory.security.jwt_auth import JWTAuthenticator
 
 os.environ["ENVIRONMENT"] = "test"
-os.environ["DATABASE_URL"] = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ["DATABASE_URL"] = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/context_memory_test",
+)
 os.environ["REDIS_URL"] = "redis://localhost:6379/1"
 os.environ["LOG_LEVEL"] = "ERROR"
 
@@ -83,7 +86,10 @@ def different_tenant_token(authenticator: JWTAuthenticator) -> str:
 @pytest_asyncio.fixture
 async def test_engine():
     """Create test database engine."""
-    db_url = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    db_url = os.getenv(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/context_memory_test",
+    )
     engine = create_async_engine(db_url, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
