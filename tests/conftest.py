@@ -18,7 +18,7 @@ from context_memory.models.base import Base
 from context_memory.security.jwt_auth import JWTAuthenticator
 
 os.environ["ENVIRONMENT"] = "test"
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://postgres:postgres@localhost:5432/context_memory_test"
+os.environ["DATABASE_URL"] = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ["REDIS_URL"] = "redis://localhost:6379/1"
 os.environ["LOG_LEVEL"] = "ERROR"
 
@@ -40,7 +40,7 @@ def valid_token(authenticator: JWTAuthenticator) -> str:
     """Generate a valid test JWT token."""
     return authenticator.generate_test_token(
         tenant_id="tenant-corp-alpha",
-        roles=["context:read", "memory:write", "session:read"],
+        roles=["context:read", "memory:read", "memory:write", "session:read"],
     )
 
 
@@ -83,16 +83,14 @@ def different_tenant_token(authenticator: JWTAuthenticator) -> str:
 @pytest_asyncio.fixture
 async def test_engine():
     """Create test database engine."""
-    test_engine = create_async_engine(
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/context_memory_test",
-        echo=False,
-    )
-    async with test_engine.begin() as conn:
+    db_url = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    engine = create_async_engine(db_url, echo=False)
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    yield test_engine
-    async with test_engine.begin() as conn:
+    yield engine
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    await test_engine.dispose()
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -105,11 +103,18 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def client() -> AsyncGenerator[AsyncClient, None]:
-    """Create async HTTP test client."""
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Create async HTTP test client with database session dependency override."""
+    from context_memory.persistence.database import get_session
+
+    async def _get_test_db() -> AsyncGenerator[AsyncSession, None]:
+        yield db_session
+
+    app.dependency_overrides[get_session] = _get_test_db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture

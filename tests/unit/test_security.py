@@ -65,7 +65,7 @@ class TestJWTAuthenticator:
 
     def test_decode_expired_token(self, authenticator):
         """Test decoding expired token raises error."""
-        token = authenticator.generate_test_token(expires_in_seconds=-1)
+        token = authenticator.generate_test_token(expires_in_seconds=-3600)
         with pytest.raises(TokenExpiredError):
             authenticator.decode_and_validate(token)
 
@@ -146,7 +146,7 @@ class TestRBACABACEngine:
             iat=int(time.time()),
             jti="test",
             tenant_id="test-tenant",
-            roles=[],
+            roles=["guest"],
             data_residency=["EU"],
             token_type="access",
         )

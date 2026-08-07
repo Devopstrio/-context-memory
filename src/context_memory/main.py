@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 
+from context_memory.api.routes import health_router
 from context_memory.api.routes import router as api_router
 from context_memory.config.settings import get_settings
 from context_memory.telemetry.metrics import setup_metrics
@@ -47,5 +48,6 @@ app.add_middleware(CorrelationIdMiddleware)
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-# Include API router
+# Include API routers
+app.include_router(health_router)
 app.include_router(api_router)

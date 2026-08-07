@@ -134,18 +134,31 @@ class BatchCreateRequest(BaseModel):
     memories: list[MemoryCreateRequest] = Field(..., min_length=1, max_length=100, description="Memories to create")
 
 
+health_router = APIRouter(tags=["Health"])
+
+
 async def get_current_user(
     request: Request,
-    authorization: str = Header(..., description="Bearer JWT token"),
-    x_tenant_id: str = Header(..., description="Tenant identifier"),
+    authorization: str | None = Header(default=None, description="Bearer JWT token"),
+    x_tenant_id: str | None = Header(default=None, description="Tenant identifier"),
 ) -> TokenPayload:
     """Extract and validate JWT claims from the request."""
-    if not authorization.startswith("Bearer "):
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ErrorResponse(
                 error_code=ErrorCode.AUTHENTICATION_FAILED,
-                message="Invalid authorization header format",
+                message="Invalid or missing authorization header format",
+                correlation_id=getattr(request.state, "correlation_id", None),
+            ).model_dump(),
+        )
+
+    if not x_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ErrorResponse(
+                error_code=ErrorCode.AUTHENTICATION_FAILED,
+                message="Missing required X-Tenant-ID header",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
         )
@@ -203,13 +216,13 @@ def get_audit_repo(db: AsyncSession = Depends(get_session)) -> AuditRepository:
     return AuditRepository(db)
 
 
-@router.get("/health/live", tags=["Health"])
+@health_router.get("/health/live")
 async def liveness_check() -> dict[str, str]:
     """Kubernetes liveness probe endpoint."""
     return {"status": "UP", "timestamp": datetime.now(UTC).isoformat()}
 
 
-@router.get("/health/ready", tags=["Health"])
+@health_router.get("/health/ready")
 async def readiness_check(
     db: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -240,7 +253,7 @@ async def readiness_check(
     }
 
 
-@router.get("/health/startup", tags=["Health"])
+@health_router.get("/health/startup")
 async def startup_check() -> dict[str, str]:
     """Kubernetes startup probe endpoint."""
     return {"status": "UP", "timestamp": datetime.now(UTC).isoformat()}
