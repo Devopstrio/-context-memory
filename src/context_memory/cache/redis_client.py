@@ -1,9 +1,10 @@
 """Production-grade Redis client with connection pooling, retry, and circuit breaker."""
+
 import asyncio
 import json
 import time
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import redis.asyncio as aioredis
 import structlog
@@ -21,6 +22,7 @@ logger = structlog.get_logger(__name__)
 
 class CircuitState(Enum):
     """Circuit breaker states."""
+
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
@@ -71,7 +73,7 @@ class RedisCircuitBreaker:
                 else:
                     self._failure_count = 0
             return result
-        except Exception as e:
+        except Exception:
             async with self._lock:
                 self._failure_count += 1
                 self._last_failure_time = time.time()
@@ -89,17 +91,18 @@ class RedisCircuitBreaker:
 
 class RedisUnavailableError(Exception):
     """Exception raised when Redis is unavailable."""
+
     pass
 
 
 class RedisClient:
     """Enterprise Redis client with production-grade reliability."""
 
-    def __init__(self, redis_url: Optional[str] = None) -> None:
+    def __init__(self, redis_url: str | None = None) -> None:
         settings = get_settings()
         self.redis_url = redis_url or settings.redis_url
-        self._pool: Optional[aioredis.ConnectionPool] = None
-        self._client: Optional[aioredis.Redis] = None
+        self._pool: aioredis.ConnectionPool | None = None
+        self._client: aioredis.Redis | None = None
         self._fallback_store: dict[str, tuple[str, float]] = {}
         self._use_redis = False
         self.circuit_breaker = RedisCircuitBreaker(
@@ -173,7 +176,7 @@ class RedisClient:
         wait=wait_exponential(multiplier=1, min=1, max=5),
         stop=stop_after_attempt(3),
     )
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> str | None:
         """Get a string value from Redis."""
         if not self._use_redis or not self._client:
             return self._get_from_fallback(key)
@@ -193,7 +196,7 @@ class RedisClient:
         self,
         key: str,
         value: str,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """Set a string value in Redis with optional TTL."""
         if not self._use_redis or not self._client:
@@ -201,9 +204,7 @@ class RedisClient:
             return True
         try:
             if ttl:
-                await self.circuit_breaker.call(
-                    self._client.setex, key, ttl, value
-                )
+                await self.circuit_breaker.call(self._client.setex, key, ttl, value)
             else:
                 await self.circuit_breaker.call(self._client.set, key, value)
             return True
@@ -212,7 +213,7 @@ class RedisClient:
             self._set_in_fallback(key, value, ttl)
             return True
 
-    async def get_json(self, key: str) -> Optional[dict[str, Any]]:
+    async def get_json(self, key: str) -> dict[str, Any] | None:
         """Get and deserialize a JSON value from Redis."""
         value = await self.get(key)
         if value is None:
@@ -227,7 +228,7 @@ class RedisClient:
         self,
         key: str,
         value: dict[str, Any],
-        ttl: Optional[int] = 300,
+        ttl: int | None = 300,
     ) -> bool:
         """Serialize and set a JSON value in Redis."""
         try:
@@ -302,7 +303,7 @@ class RedisClient:
         lock_name: str,
         timeout: int = 10,
         blocking: bool = True,
-        blocking_timeout: Optional[int] = None,
+        blocking_timeout: int | None = None,
     ) -> bool:
         """Acquire a distributed lock."""
         if not self._use_redis or not self._client:
@@ -330,7 +331,7 @@ class RedisClient:
         except Exception as e:
             logger.warning("Failed to release lock", lock_name=lock_name, error=str(e))
 
-    def _get_from_fallback(self, key: str) -> Optional[str]:
+    def _get_from_fallback(self, key: str) -> str | None:
         """Get value from in-memory fallback store."""
         if key in self._fallback_store:
             value, expires_at = self._fallback_store[key]
@@ -339,7 +340,7 @@ class RedisClient:
             del self._fallback_store[key]
         return None
 
-    def _set_in_fallback(self, key: str, value: str, ttl: Optional[int] = None) -> None:
+    def _set_in_fallback(self, key: str, value: str, ttl: int | None = None) -> None:
         """Set value in in-memory fallback store."""
         expires_at = time.time() + (ttl if ttl else 3600)
         self._fallback_store[key] = (value, expires_at)
@@ -349,9 +350,7 @@ class RedisClient:
     def _cleanup_fallback(self) -> None:
         """Clean up expired entries from fallback store."""
         now = time.time()
-        expired_keys = [
-            k for k, (_, exp) in self._fallback_store.items() if exp <= now
-        ]
+        expired_keys = [k for k, (_, exp) in self._fallback_store.items() if exp <= now]
         for key in expired_keys:
             del self._fallback_store[key]
 

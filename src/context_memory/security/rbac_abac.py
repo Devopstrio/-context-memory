@@ -1,7 +1,8 @@
 """Role-Based (RBAC) and Attribute-Based (ABAC) Access Control Engine."""
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -115,13 +116,11 @@ class RBACABACEngine:
     def authorize_read_request(
         self,
         claims: TokenPayload,
-        request_attributes: Optional[dict[str, Any]] = None,
+        request_attributes: dict[str, Any] | None = None,
     ) -> None:
         """Authorize a read request with RBAC and ABAC checks."""
         if not claims.roles:
-            raise SecurityBoundaryViolation(
-                "Access Denied: Token lacks required roles", code="ERR-4001"
-            )
+            raise SecurityBoundaryViolation("Access Denied: Token lacks required roles", code="ERR-4001")
 
         permissions = self.get_permissions_for_roles(claims.roles)
         if Permission.MEMORY_READ not in permissions and Permission.ADMIN_FULL not in permissions:
@@ -142,13 +141,11 @@ class RBACABACEngine:
     def authorize_write_request(
         self,
         claims: TokenPayload,
-        request_attributes: Optional[dict[str, Any]] = None,
+        request_attributes: dict[str, Any] | None = None,
     ) -> None:
         """Authorize a write request with RBAC and ABAC checks."""
         if not claims.roles:
-            raise SecurityBoundaryViolation(
-                "Access Denied: Token lacks required roles", code="ERR-4001"
-            )
+            raise SecurityBoundaryViolation("Access Denied: Token lacks required roles", code="ERR-4001")
 
         permissions = self.get_permissions_for_roles(claims.roles)
         if Permission.MEMORY_WRITE not in permissions and Permission.ADMIN_FULL not in permissions:
@@ -169,13 +166,11 @@ class RBACABACEngine:
     def authorize_delete_request(
         self,
         claims: TokenPayload,
-        request_attributes: Optional[dict[str, Any]] = None,
+        request_attributes: dict[str, Any] | None = None,
     ) -> None:
         """Authorize a delete request with RBAC and ABAC checks."""
         if not claims.roles:
-            raise SecurityBoundaryViolation(
-                "Access Denied: Token lacks required roles", code="ERR-4001"
-            )
+            raise SecurityBoundaryViolation("Access Denied: Token lacks required roles", code="ERR-4001")
 
         permissions = self.get_permissions_for_roles(claims.roles)
         if Permission.MEMORY_DELETE not in permissions and Permission.ADMIN_FULL not in permissions:
@@ -230,7 +225,7 @@ class RBACABACEngine:
 
         time_restricted = request_attributes.get("time_restricted")
         if time_restricted:
-            current_hour = datetime.now(timezone.utc).hour
+            current_hour = datetime.now(UTC).hour
             allowed_hours = request_attributes.get("allowed_hours", [0, 24])
             if not (allowed_hours[0] <= current_hour <= allowed_hours[1]):
                 raise SecurityBoundaryViolation(

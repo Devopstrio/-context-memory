@@ -1,4 +1,5 @@
 """Production-grade structured logging configuration."""
+
 import logging
 import re
 import sys
@@ -15,14 +16,14 @@ class SensitiveDataFilter:
     """Filter to mask sensitive data in log messages."""
 
     SENSITIVE_PATTERNS: list[tuple[str, str]] = [
-        (r'(?i)(bearer\s+)[^\s]+', r'\1[REDACTED]'),
-        (r'(?i)(api[_-]?key[=:]\s*)[^\s,;]+', r'\1[REDACTED]'),
-        (r'(?i)(secret[=:]\s*)[^\s,;]+', r'\1[REDACTED]'),
-        (r'(?i)(password[=:]\s*)[^\s,;]+', r'\1[REDACTED]'),
-        (r'(?i)(token[=:]\s*)[^\s,;]+', r'\1[REDACTED]'),
+        (r"(?i)(bearer\s+)[^\s]+", r"\1[REDACTED]"),
+        (r"(?i)(api[_-]?key[=:]\s*)[^\s,;]+", r"\1[REDACTED]"),
+        (r"(?i)(secret[=:]\s*)[^\s,;]+", r"\1[REDACTED]"),
+        (r"(?i)(password[=:]\s*)[^\s,;]+", r"\1[REDACTED]"),
+        (r"(?i)(token[=:]\s*)[^\s,;]+", r"\1[REDACTED]"),
         (r'"[^"]*@[^"]*"', '"[REDACTED_EMAIL]"'),
-        (r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED_SSN]'),
-        (r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b', '[REDACTED_CC]'),
+        (r"\b\d{3}-\d{2}-\d{4}\b", "[REDACTED_SSN]"),
+        (r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", "[REDACTED_CC]"),
     ]
 
     @classmethod
@@ -56,9 +57,7 @@ def setup_logging() -> None:
 
     if settings.environment == "production":
         processors = shared_processors + [
-            structlog.processors.JSONRenderer(
-                serializer=lambda obj, **kw: __import__("json").dumps(obj, default=str)
-            )
+            structlog.processors.JSONRenderer(serializer=lambda obj, **kw: __import__("json").dumps(obj, default=str))
         ]
     elif settings.environment == "development":
         processors = shared_processors + [structlog.dev.ConsoleRenderer(colors=True)]

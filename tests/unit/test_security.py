@@ -1,10 +1,10 @@
 """Unit tests for security module."""
+
 import time
 
 import pytest
 
 from context_memory.security.jwt_auth import (
-    JWTAuthenticator,
     TokenExpiredError,
     TokenPayload,
     TokenValidationError,
@@ -12,7 +12,6 @@ from context_memory.security.jwt_auth import (
 from context_memory.security.rbac_abac import (
     Permission,
     RBACABACEngine,
-    Role,
 )
 from context_memory.security.tenant_guard import (
     SecurityBoundaryViolation,

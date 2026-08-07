@@ -1,7 +1,8 @@
 """Repository for Memory and MemoryEmbedding database operations."""
+
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import and_, delete, func, select, update
@@ -32,7 +33,7 @@ class MemoryRepository:
         )
         return memory
 
-    async def get_by_id(self, memory_id: uuid.UUID, tenant_id: str) -> Optional[Memory]:
+    async def get_by_id(self, memory_id: uuid.UUID, tenant_id: str) -> Memory | None:
         """Retrieve a memory by ID with tenant isolation."""
         result = await self.session.execute(
             select(Memory).where(
@@ -65,12 +66,10 @@ class MemoryRepository:
         return result.scalars().all()
 
     async def get_by_tenant(
-        self, tenant_id: str, memory_type: Optional[str] = None, limit: int = 100, offset: int = 0
+        self, tenant_id: str, memory_type: str | None = None, limit: int = 100, offset: int = 0
     ) -> Sequence[Memory]:
         """Retrieve memories for a tenant with optional type filter."""
-        query = select(Memory).where(
-            and_(Memory.tenant_id == tenant_id, Memory.is_deleted == False)
-        )
+        query = select(Memory).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted == False))
         if memory_type:
             query = query.where(Memory.memory_type == memory_type)
         query = query.order_by(Memory.updated_at.desc()).limit(limit).offset(offset)
@@ -81,14 +80,15 @@ class MemoryRepository:
         self,
         memory_id: uuid.UUID,
         tenant_id: str,
-        content: Optional[str] = None,
-        metadata: Optional[dict] = None,
-        importance: Optional[float] = None,
-    ) -> Optional[Memory]:
+        content: str | None = None,
+        metadata: dict | None = None,
+        importance: float | None = None,
+    ) -> Memory | None:
         """Update a memory's content, metadata, or importance."""
-        values = {"updated_at": datetime.now(timezone.utc)}
+        values = {"updated_at": datetime.now(UTC)}
         if content is not None:
             import hashlib
+
             values["content"] = content
             values["content_hash"] = hashlib.sha256(content.encode()).hexdigest()
         if metadata is not None:
@@ -128,7 +128,7 @@ class MemoryRepository:
             )
             .values(
                 is_deleted=True,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(UTC),
             )
         )
         result = await self.session.execute(stmt)
@@ -140,9 +140,7 @@ class MemoryRepository:
 
     async def hard_delete(self, memory_id: uuid.UUID, tenant_id: str) -> bool:
         """Permanently delete a memory record."""
-        stmt = delete(Memory).where(
-            and_(Memory.id == memory_id, Memory.tenant_id == tenant_id)
-        )
+        stmt = delete(Memory).where(and_(Memory.id == memory_id, Memory.tenant_id == tenant_id))
         result = await self.session.execute(stmt)
         await self.session.flush()
         return result.rowcount > 0
@@ -159,7 +157,7 @@ class MemoryRepository:
             )
             .values(
                 access_count=Memory.access_count + 1,
-                last_accessed_at=datetime.now(timezone.utc),
+                last_accessed_at=datetime.now(UTC),
             )
         )
         await self.session.execute(stmt)
@@ -168,9 +166,7 @@ class MemoryRepository:
     async def count_by_tenant(self, tenant_id: str) -> int:
         """Count total non-deleted memories for a tenant."""
         result = await self.session.execute(
-            select(func.count(Memory.id)).where(
-                and_(Memory.tenant_id == tenant_id, Memory.is_deleted == False)
-            )
+            select(func.count(Memory.id)).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted == False))
         )
         return result.scalar_one()
 
@@ -202,11 +198,9 @@ class MemoryRepository:
         await self.session.flush()
         return result.scalar_one()
 
-    async def get_embedding(self, memory_id: uuid.UUID) -> Optional[MemoryEmbedding]:
+    async def get_embedding(self, memory_id: uuid.UUID) -> MemoryEmbedding | None:
         """Retrieve embedding for a memory."""
-        result = await self.session.execute(
-            select(MemoryEmbedding).where(MemoryEmbedding.memory_id == memory_id)
-        )
+        result = await self.session.execute(select(MemoryEmbedding).where(MemoryEmbedding.memory_id == memory_id))
         return result.scalar_one_or_none()
 
     async def search_similar(
@@ -214,7 +208,7 @@ class MemoryRepository:
         tenant_id: str,
         query_embedding: list[float],
         top_k: int = 10,
-        memory_type: Optional[str] = None,
+        memory_type: str | None = None,
     ) -> Sequence[tuple[Memory, float]]:
         """Search for similar memories using cosine similarity."""
         query = (
@@ -243,7 +237,7 @@ class MemoryRepository:
 
     async def cleanup_expired(self, tenant_id: str) -> int:
         """Soft delete expired memories."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(Memory)
             .where(

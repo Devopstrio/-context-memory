@@ -1,7 +1,7 @@
 """Embedding generation abstraction with production-grade retry and fallback."""
+
 from abc import ABC, abstractmethod
 from hashlib import md5
-from typing import Optional
 
 import structlog
 from tenacity import (
@@ -16,6 +16,7 @@ logger = structlog.get_logger(__name__)
 
 class EmbeddingError(Exception):
     """Custom exception for embedding generation failures."""
+
     pass
 
 

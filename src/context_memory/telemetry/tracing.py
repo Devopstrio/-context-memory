@@ -1,6 +1,4 @@
 """OpenTelemetry tracing configuration for distributed tracing."""
-import os
-from typing import Optional
 
 import structlog
 from opentelemetry import trace
@@ -16,14 +14,13 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
-from opentelemetry.trace import Status, StatusCode
 
 from context_memory.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
 
-def setup_tracing() -> Optional[TracerProvider]:
+def setup_tracing() -> TracerProvider | None:
     """Configure OpenTelemetry tracing with OTLP exporter."""
     settings = get_settings()
     if not settings.otlp_enabled:
@@ -31,16 +28,16 @@ def setup_tracing() -> Optional[TracerProvider]:
         return None
 
     try:
-        resource = Resource.create({
-            SERVICE_NAME: settings.otlp_service_name,
-            SERVICE_VERSION: "1.0.0",
-            DEPLOYMENT_ENVIRONMENT: settings.environment,
-            "service.namespace": "context-memory",
-        })
-
-        sampler = ParentBased(
-            root=TraceIdRatioBased(0.1 if settings.environment == "production" else 1.0)
+        resource = Resource.create(
+            {
+                SERVICE_NAME: settings.otlp_service_name,
+                SERVICE_VERSION: "1.0.0",
+                DEPLOYMENT_ENVIRONMENT: settings.environment,
+                "service.namespace": "context-memory",
+            }
         )
+
+        sampler = ParentBased(root=TraceIdRatioBased(0.1 if settings.environment == "production" else 1.0))
 
         provider = TracerProvider(
             resource=resource,

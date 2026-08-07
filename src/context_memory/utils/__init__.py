@@ -1,4 +1,5 @@
 """Utilities."""
+
 from .exceptions import (
     AppException,
     AuthenticationError,

@@ -1,5 +1,7 @@
 """Session context hydration service."""
+
 from typing import Any
+
 import structlog
 
 from context_memory.services.memory_service import MemoryService

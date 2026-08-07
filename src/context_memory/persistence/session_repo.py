@@ -1,6 +1,7 @@
 """Repository for Session database operations."""
-from datetime import datetime, timezone
-from typing import Optional, Sequence
+
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import and_, func, select, update
@@ -28,7 +29,7 @@ class SessionRepository:
                 user_id=session.user_id,
                 status=session.status,
                 metadata_=session.metadata_,
-                last_active_at=datetime.now(timezone.utc),
+                last_active_at=datetime.now(UTC),
             )
             .on_conflict_do_update(
                 index_elements=["tenant_id", "session_id"],
@@ -36,8 +37,8 @@ class SessionRepository:
                     "user_id": session.user_id,
                     "status": session.status,
                     "metadata_": session.metadata_,
-                    "last_active_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
+                    "last_active_at": datetime.now(UTC),
+                    "updated_at": datetime.now(UTC),
                 },
             )
             .returning(Session)
@@ -52,7 +53,7 @@ class SessionRepository:
         )
         return created_session
 
-    async def get(self, tenant_id: str, session_id: str) -> Optional[Session]:
+    async def get(self, tenant_id: str, session_id: str) -> Session | None:
         """Retrieve a session by tenant and session ID."""
         result = await self.session.execute(
             select(Session).where(
@@ -65,9 +66,7 @@ class SessionRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_active_sessions(
-        self, tenant_id: str, limit: int = 100, offset: int = 0
-    ) -> Sequence[Session]:
+    async def get_active_sessions(self, tenant_id: str, limit: int = 100, offset: int = 0) -> Sequence[Session]:
         """Retrieve active sessions for a tenant."""
         result = await self.session.execute(
             select(Session)
@@ -84,9 +83,7 @@ class SessionRepository:
         )
         return result.scalars().all()
 
-    async def update_status(
-        self, tenant_id: str, session_id: str, status: str
-    ) -> Optional[Session]:
+    async def update_status(self, tenant_id: str, session_id: str, status: str) -> Session | None:
         """Update session status."""
         stmt = (
             update(Session)
@@ -98,7 +95,7 @@ class SessionRepository:
             )
             .values(
                 status=status,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(UTC),
             )
             .returning(Session)
         )
@@ -119,7 +116,7 @@ class SessionRepository:
             .values(
                 is_archived=True,
                 status="archived",
-                updated_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(UTC),
             )
         )
         result = await self.session.execute(stmt)
@@ -136,7 +133,7 @@ class SessionRepository:
                     Session.session_id == session_id,
                 )
             )
-            .values(last_active_at=datetime.now(timezone.utc))
+            .values(last_active_at=datetime.now(UTC))
         )
         await self.session.execute(stmt)
         await self.session.flush()
@@ -156,7 +153,7 @@ class SessionRepository:
 
     async def cleanup_expired(self, tenant_id: str) -> int:
         """Archive expired sessions."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(Session)
             .where(

@@ -1,7 +1,7 @@
 """JWT Authentication and Claims Validation with production-grade security."""
+
 import time
-from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import jwt
 import structlog
@@ -120,13 +120,14 @@ class JWTAuthenticator:
         self,
         tenant_id: str,
         sub: str = "service-agent",
-        roles: Optional[list[str]] = None,
-        data_residency: Optional[list[str]] = None,
-        expires_in_minutes: Optional[int] = None,
-        jti: Optional[str] = None,
+        roles: list[str] | None = None,
+        data_residency: list[str] | None = None,
+        expires_in_minutes: int | None = None,
+        jti: str | None = None,
     ) -> str:
         """Create a signed JWT access token."""
         import uuid
+
         now = int(time.time())
         expire_minutes = expires_in_minutes or self.settings.jwt_access_token_expire_minutes
 
@@ -162,10 +163,11 @@ class JWTAuthenticator:
         self,
         tenant_id: str,
         sub: str = "service-agent",
-        expires_in_days: Optional[int] = None,
+        expires_in_days: int | None = None,
     ) -> str:
         """Create a signed JWT refresh token."""
         import uuid
+
         now = int(time.time())
         expire_days = expires_in_days or self.settings.jwt_refresh_token_expire_days
 
@@ -209,12 +211,13 @@ class JWTAuthenticator:
     def generate_test_token(
         self,
         tenant_id: str = "tenant-corp-alpha",
-        roles: Optional[list[str]] = None,
-        data_residency: Optional[list[str]] = None,
+        roles: list[str] | None = None,
+        data_residency: list[str] | None = None,
         expires_in_seconds: int = 3600,
     ) -> str:
         """Generate a test token for integration testing."""
         import uuid
+
         now = int(time.time())
 
         claims = {

@@ -1,12 +1,11 @@
 """Database configuration and session management."""
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+
+from collections.abc import AsyncGenerator
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from context_memory.config.settings import get_settings
-from context_memory.models.base import Base
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()

@@ -1,5 +1,6 @@
 """Repository for Tenant database operations."""
-from typing import Optional, Sequence
+
+from collections.abc import Sequence
 
 import structlog
 from sqlalchemy import and_, select, update
@@ -24,12 +25,10 @@ class TenantRepository:
         logger.info("Tenant created", tenant_id=tenant.tenant_id, name=tenant.name)
         return tenant
 
-    async def get_by_id(self, tenant_id: str) -> Optional[Tenant]:
+    async def get_by_id(self, tenant_id: str) -> Tenant | None:
         """Retrieve a tenant by tenant_id."""
         result = await self.session.execute(
-            select(Tenant).where(
-                and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted == False)
-            )
+            select(Tenant).where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted == False))
         )
         return result.scalar_one_or_none()
 
@@ -43,9 +42,7 @@ class TenantRepository:
         )
         return result.scalars().all()
 
-    async def update_settings(
-        self, tenant_id: str, settings: dict
-    ) -> Optional[Tenant]:
+    async def update_settings(self, tenant_id: str, settings: dict) -> Tenant | None:
         """Update tenant settings."""
         stmt = (
             update(Tenant)
@@ -57,7 +54,7 @@ class TenantRepository:
         await self.session.flush()
         return result.scalar_one_or_none()
 
-    async def update_status(self, tenant_id: str, status: str) -> Optional[Tenant]:
+    async def update_status(self, tenant_id: str, status: str) -> Tenant | None:
         """Update tenant status."""
         stmt = (
             update(Tenant)

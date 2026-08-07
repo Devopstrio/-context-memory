@@ -1,8 +1,10 @@
 """Memory service layer with business logic and orchestration."""
+
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import structlog
 from tenacity import (
@@ -50,10 +52,10 @@ class MemoryService:
         session_id: str,
         user_id: str,
         content: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         importance: float = 1.0,
         memory_type: str = "general",
-        ttl_days: Optional[int] = None,
+        ttl_days: int | None = None,
     ) -> Memory:
         """Add a new memory with embedding generation."""
         try:
@@ -70,7 +72,7 @@ class MemoryService:
             )
 
             if ttl_days is not None:
-                memory.expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
+                memory.expires_at = datetime.now(UTC) + timedelta(days=ttl_days)
             else:
                 memory = self.retention.apply_policy(memory)
 
@@ -116,7 +118,7 @@ class MemoryService:
                 details={"original_error": str(e)},
             )
 
-    async def get_memory(self, memory_id: uuid.UUID, tenant_id: str) -> Optional[Memory]:
+    async def get_memory(self, memory_id: uuid.UUID, tenant_id: str) -> Memory | None:
         """Retrieve a memory by ID with tenant isolation."""
         memory = await self.repo.get_by_id(memory_id, tenant_id)
         if memory and not self.retention.is_expired(memory):
@@ -130,7 +132,7 @@ class MemoryService:
         session_id: str,
         limit: int = 100,
         offset: int = 0,
-        memory_type: Optional[str] = None,
+        memory_type: str | None = None,
     ) -> Sequence[Memory]:
         """Retrieve memories for a session with filtering."""
         memories = await self.repo.get_by_session(tenant_id, session_id, limit, offset)
@@ -147,10 +149,10 @@ class MemoryService:
         self,
         memory_id: uuid.UUID,
         tenant_id: str,
-        content: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        importance: Optional[float] = None,
-    ) -> Optional[Memory]:
+        content: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        importance: float | None = None,
+    ) -> Memory | None:
         """Update a memory with validation."""
         if importance is not None and not (0.0 <= importance <= 10.0):
             raise ValidationError(
@@ -207,8 +209,8 @@ class MemoryService:
         tenant_id: str,
         query: str,
         top_k: int = 10,
-        memory_type: Optional[str] = None,
-    ) -> Sequence[Tuple[Memory, float]]:
+        memory_type: str | None = None,
+    ) -> Sequence[tuple[Memory, float]]:
         """Search for similar memories using semantic similarity."""
         try:
             query_embedding = await self.embedder.embed(query)
@@ -218,11 +220,7 @@ class MemoryService:
                 top_k=top_k,
                 memory_type=memory_type,
             )
-            active_results = [
-                (mem, score)
-                for mem, score in results
-                if not self.retention.is_expired(mem)
-            ]
+            active_results = [(mem, score) for mem, score in results if not self.retention.is_expired(mem)]
             logger.info(
                 "Similarity search completed",
                 tenant_id=tenant_id,

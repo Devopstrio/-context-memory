@@ -1,6 +1,7 @@
 """Centralized exception handling and error responses."""
+
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
@@ -43,8 +44,8 @@ class ErrorResponse(BaseModel):
 
     error_code: ErrorCode
     message: str
-    details: Optional[dict[str, Any]] = Field(default=None, description="Additional error details")
-    correlation_id: Optional[str] = Field(default=None, description="Request correlation ID")
+    details: dict[str, Any] | None = Field(default=None, description="Additional error details")
+    correlation_id: str | None = Field(default=None, description="Request correlation ID")
     timestamp: str = Field(
         default_factory=lambda: __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
     )
@@ -57,7 +58,7 @@ class AppException(Exception):
         self,
         message: str,
         error_code: ErrorCode = ErrorCode.INTERNAL_ERROR,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
     ) -> None:
         self.message = message
@@ -70,9 +71,7 @@ class AppException(Exception):
 class AuthenticationError(AppException):
     """Authentication related errors."""
 
-    def __init__(
-        self, message: str, error_code: ErrorCode = ErrorCode.AUTHENTICATION_FAILED
-    ) -> None:
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.AUTHENTICATION_FAILED) -> None:
         super().__init__(
             message=message,
             error_code=error_code,
@@ -83,9 +82,7 @@ class AuthenticationError(AppException):
 class AuthorizationError(AppException):
     """Authorization related errors."""
 
-    def __init__(
-        self, message: str, error_code: ErrorCode = ErrorCode.INSUFFICIENT_PERMISSIONS
-    ) -> None:
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.INSUFFICIENT_PERMISSIONS) -> None:
         super().__init__(
             message=message,
             error_code=error_code,
@@ -96,9 +93,7 @@ class AuthorizationError(AppException):
 class TenantError(AppException):
     """Tenant related errors."""
 
-    def __init__(
-        self, message: str, error_code: ErrorCode = ErrorCode.TENANT_ISOLATION_VIOLATION
-    ) -> None:
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.TENANT_ISOLATION_VIOLATION) -> None:
         super().__init__(
             message=message,
             error_code=error_code,
@@ -121,7 +116,7 @@ class ResourceNotFoundError(AppException):
 class ValidationError(AppException):
     """Validation errors."""
 
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(
             message=message,
             error_code=ErrorCode.VALIDATION_ERROR,

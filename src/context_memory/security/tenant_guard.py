@@ -1,4 +1,5 @@
 """Tenant Isolation Guardrail with comprehensive security checks."""
+
 import hashlib
 import hmac
 from typing import Any
@@ -91,9 +92,7 @@ class TenantIsolationGuard:
         elif tenant_status == "deleted":
             raise SecurityBoundaryViolation("Tenant account has been deleted", code="ERR-4002")
         elif tenant_status != "active":
-            raise SecurityBoundaryViolation(
-                f"Tenant account is in invalid state: {tenant_status}", code="ERR-4002"
-            )
+            raise SecurityBoundaryViolation(f"Tenant account is in invalid state: {tenant_status}", code="ERR-4002")
 
     def enforce_data_residency(
         self,

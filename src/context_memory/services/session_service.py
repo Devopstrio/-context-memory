@@ -1,6 +1,8 @@
 """Session service layer with business logic for session management."""
-from datetime import datetime, timezone
-from typing import Any, Optional, Sequence
+
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
@@ -22,8 +24,8 @@ class SessionService:
         tenant_id: str,
         session_id: str,
         user_id: str,
-        metadata: Optional[dict[str, Any]] = None,
-        expires_in_days: Optional[int] = None,
+        metadata: dict[str, Any] | None = None,
+        expires_in_days: int | None = None,
     ) -> Session:
         """Ensure a session exists, creating if necessary."""
         try:
@@ -33,7 +35,7 @@ class SessionService:
                 user_id=user_id,
                 status="active",
                 metadata_=metadata or {},
-                last_active_at=datetime.now(timezone.utc),
+                last_active_at=datetime.now(UTC),
             )
             session = await self.repo.upsert(session)
             logger.info(
@@ -57,19 +59,17 @@ class SessionService:
                 details={"original_error": str(e)},
             )
 
-    async def get_session(self, tenant_id: str, session_id: str) -> Optional[Session]:
+    async def get_session(self, tenant_id: str, session_id: str) -> Session | None:
         """Retrieve a session by ID with expiry check."""
         session = await self.repo.get(tenant_id, session_id)
-        if session and session.expires_at and session.expires_at < datetime.now(timezone.utc):
+        if session and session.expires_at and session.expires_at < datetime.now(UTC):
             await self.repo.update_status(tenant_id, session_id, "expired")
             return None
         if session:
             await self.repo.update_activity(tenant_id, session_id)
         return session
 
-    async def get_active_sessions(
-        self, tenant_id: str, limit: int = 100, offset: int = 0
-    ) -> Sequence[Session]:
+    async def get_active_sessions(self, tenant_id: str, limit: int = 100, offset: int = 0) -> Sequence[Session]:
         """Retrieve active sessions for a tenant."""
         return await self.repo.get_active_sessions(tenant_id, limit, offset)
 
@@ -84,7 +84,7 @@ class SessionService:
         )
         return archived
 
-    async def pause_session(self, tenant_id: str, session_id: str) -> Optional[Session]:
+    async def pause_session(self, tenant_id: str, session_id: str) -> Session | None:
         """Pause an active session."""
         session = await self.repo.update_status(tenant_id, session_id, "paused")
         if session:
@@ -95,7 +95,7 @@ class SessionService:
             )
         return session
 
-    async def resume_session(self, tenant_id: str, session_id: str) -> Optional[Session]:
+    async def resume_session(self, tenant_id: str, session_id: str) -> Session | None:
         """Resume a paused session."""
         session = await self.repo.update_status(tenant_id, session_id, "active")
         if session:
@@ -138,7 +138,7 @@ class SessionService:
         session_id: str,
         metadata: dict[str, Any],
         merge: bool = True,
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Update session metadata."""
         session = await self.repo.get(tenant_id, session_id)
         if not session:

@@ -1,7 +1,8 @@
 """Production-grade middleware for request processing pipeline."""
+
 import time
 import uuid
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import Request, Response
@@ -16,9 +17,7 @@ logger = structlog.get_logger(__name__)
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
     """Middleware to inject and propagate correlation IDs for request tracing."""
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         correlation_id = request.headers.get(
             "X-Correlation-ID",
             request.headers.get("X-Request-ID", str(uuid.uuid4())),
@@ -37,9 +36,7 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware for comprehensive request/response logging."""
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         start_time = time.monotonic()
         request.state.start_time = start_time
         logger.info(
@@ -91,9 +88,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 class TenantContextMiddleware(BaseHTTPMiddleware):
     """Middleware to extract and validate tenant context from requests."""
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         tenant_id = request.headers.get("X-Tenant-ID")
         if tenant_id:
             request.state.tenant_id = tenant_id
@@ -110,9 +105,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests_per_minute = requests_per_minute
         self._request_counts: dict[str, list[float]] = {}
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         from fastapi.responses import JSONResponse
 
         tenant_id = getattr(request.state, "tenant_id", "anonymous")
@@ -122,9 +115,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             self._request_counts[tenant_id] = []
 
         window_start = current_time - 60
-        self._request_counts[tenant_id] = [
-            t for t in self._request_counts[tenant_id] if t > window_start
-        ]
+        self._request_counts[tenant_id] = [t for t in self._request_counts[tenant_id] if t > window_start]
 
         if len(self._request_counts[tenant_id]) >= self.requests_per_minute:
             logger.warning(
@@ -157,9 +148,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware to add security headers to all responses."""
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"

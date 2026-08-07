@@ -1,4 +1,5 @@
 """Prometheus metrics for Context Memory service."""
+
 from prometheus_client import Counter, Gauge, Histogram, Info
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -130,8 +131,10 @@ def setup_metrics(app) -> None:
         include_in_schema=True,
     )
 
-    SERVICE_INFO.info({
-        "version": "1.0.0",
-        "environment": get_settings().environment,
-        "python_version": "3.11",
-    })
+    SERVICE_INFO.info(
+        {
+            "version": "1.0.0",
+            "environment": get_settings().environment,
+            "python_version": "3.11",
+        }
+    )

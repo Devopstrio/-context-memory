@@ -1,6 +1,7 @@
 """Session ORM model for context memory sessions."""
-from datetime import datetime, timezone
-from typing import Any, Optional
+
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import DateTime, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -14,22 +15,16 @@ class Session(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "sessions"
 
-    tenant_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, index=True, comment="Multi-tenant identifier"
-    )
+    tenant_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True, comment="Multi-tenant identifier")
     session_id: Mapped[str] = mapped_column(
         String(255), nullable=False, index=True, comment="Unique session identifier"
     )
-    user_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, comment="User identifier"
-    )
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, comment="User identifier")
     status: Mapped[str] = mapped_column(
         String(50), default="active", nullable=False, comment="Session status (active, paused, completed, expired)"
     )
-    metadata_: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, nullable=False, comment="Session metadata"
-    )
-    context_snapshot: Mapped[Optional[dict[str, Any]]] = mapped_column(
+    metadata_: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False, comment="Session metadata")
+    context_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True, comment="Serialized context snapshot for quick restoration"
     )
     memory_count: Mapped[int] = mapped_column(
@@ -40,12 +35,12 @@ class Session(Base, UUIDMixin, TimestampMixin):
     )
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         server_default=func.now(),
         nullable=False,
         comment="Last activity timestamp",
     )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
+    expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True, comment="Session expiration timestamp"
     )
     is_archived: Mapped[bool] = mapped_column(

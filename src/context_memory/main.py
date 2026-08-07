@@ -1,4 +1,5 @@
 """Main FastAPI application entry point for Context Memory System."""
+
 from fastapi import FastAPI
 
 from context_memory.api.routes import router as api_router
@@ -9,8 +10,6 @@ from context_memory.utils.exceptions import (
     AppException,
     app_exception_handler,
     generic_exception_handler,
-    http_exception_handler,
-    validation_exception_handler,
 )
 from context_memory.utils.logging import setup_logging
 from context_memory.utils.middleware import (

@@ -1,12 +1,12 @@
 """API Endpoints for Context Memory Service."""
+
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     Header,
     HTTPException,
@@ -15,7 +15,6 @@ from fastapi import (
     Response,
     status,
 )
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,7 +40,6 @@ from context_memory.services.memory_service import MemoryService
 from context_memory.services.session_service import SessionService
 from context_memory.session.hydration import SessionHydrator
 from context_memory.utils.exceptions import (
-    AppException,
     ErrorCode,
     ErrorResponse,
 )
@@ -67,7 +65,7 @@ class MemoryCreateRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     importance: float = Field(default=1.0, ge=0.0, le=10.0, description="Memory importance score")
     memory_type: str = Field(default="general", description="Type of memory")
-    idempotency_key: Optional[str] = Field(default=None, description="Idempotency key")
+    idempotency_key: str | None = Field(default=None, description="Idempotency key")
 
     @field_validator("content")
     @classmethod
@@ -80,9 +78,9 @@ class MemoryCreateRequest(BaseModel):
 class MemoryUpdateRequest(BaseModel):
     """Request model for updating a memory."""
 
-    content: Optional[str] = Field(default=None, min_length=1, max_length=100000, description="Updated content")
-    metadata: Optional[dict[str, Any]] = Field(default=None, description="Updated metadata")
-    importance: Optional[float] = Field(default=None, ge=0.0, le=10.0, description="Updated importance")
+    content: str | None = Field(default=None, min_length=1, max_length=100000, description="Updated content")
+    metadata: dict[str, Any] | None = Field(default=None, description="Updated metadata")
+    importance: float | None = Field(default=None, ge=0.0, le=10.0, description="Updated importance")
 
 
 class MemoryResponse(BaseModel):
@@ -98,7 +96,7 @@ class MemoryResponse(BaseModel):
     memory_type: str
     created_at: str
     updated_at: str
-    expires_at: Optional[str] = None
+    expires_at: str | None = None
 
 
 class PaginatedResponse(BaseModel):
@@ -126,15 +124,13 @@ class SearchRequest(BaseModel):
     tenant_id: str = Field(..., min_length=3, max_length=255)
     query: str = Field(..., min_length=1, max_length=5000)
     top_k: int = Field(default=10, ge=1, le=100)
-    memory_type: Optional[str] = Field(default=None)
+    memory_type: str | None = Field(default=None)
 
 
 class BatchCreateRequest(BaseModel):
     """Request model for batch memory creation."""
 
-    memories: list[MemoryCreateRequest] = Field(
-        ..., min_length=1, max_length=100, description="Memories to create"
-    )
+    memories: list[MemoryCreateRequest] = Field(..., min_length=1, max_length=100, description="Memories to create")
 
 
 async def get_current_user(
@@ -209,7 +205,7 @@ def get_audit_repo(db: AsyncSession = Depends(get_session)) -> AuditRepository:
 @router.get("/health/live", tags=["Health"])
 async def liveness_check() -> dict[str, str]:
     """Kubernetes liveness probe endpoint."""
-    return {"status": "UP", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"status": "UP", "timestamp": datetime.now(UTC).isoformat()}
 
 
 @router.get("/health/ready", tags=["Health"])
@@ -226,6 +222,7 @@ async def readiness_check(
 
     try:
         from context_memory.cache.redis_client import get_redis_client
+
         redis = await get_redis_client()
         if await redis.ping():
             checks["redis"] = "UP"
@@ -238,14 +235,14 @@ async def readiness_check(
     return {
         "status": "UP" if all_up else "DEGRADED",
         "checks": checks,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
 @router.get("/health/startup", tags=["Health"])
 async def startup_check() -> dict[str, str]:
     """Kubernetes startup probe endpoint."""
-    return {"status": "UP", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"status": "UP", "timestamp": datetime.now(UTC).isoformat()}
 
 
 @router.post(
@@ -382,7 +379,7 @@ async def list_session_memories(
     session_id: str = Query(..., description="Session identifier"),
     page: int = Query(default=1, ge=1, description="Page number"),
     size: int = Query(default=20, ge=1, le=100, description="Page size"),
-    memory_type: Optional[str] = Query(default=None, description="Filter by memory type"),
+    memory_type: str | None = Query(default=None, description="Filter by memory type"),
     request: Request = None,
     claims: TokenPayload = Depends(get_current_user),
     memory_service: MemoryService = Depends(get_memory_service),
