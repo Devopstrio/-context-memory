@@ -1,8 +1,7 @@
 """Pytest fixtures and configuration for Context Memory tests."""
 
-import asyncio
 import os
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -22,14 +21,6 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://postgres:postgres@localhost:5432/context_memory_test"
 os.environ["REDIS_URL"] = "redis://localhost:6379/1"
 os.environ["LOG_LEVEL"] = "ERROR"
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="session")
