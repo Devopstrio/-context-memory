@@ -1,6 +1,7 @@
 """JWT Authentication and Claims Validation with production-grade security."""
 
 import time
+from enum import Enum
 from typing import Any
 
 import jwt
@@ -10,6 +11,13 @@ from pydantic import BaseModel, Field, field_validator
 from context_memory.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
+
+
+class TokenType(str, Enum):  # noqa: UP042
+    """JWT token types."""
+
+    ACCESS = "access"
+    REFRESH = "refresh"
 
 
 class TokenPayload(BaseModel):
@@ -102,7 +110,7 @@ class JWTAuthenticator:
             if payload.get("jti") in self._blacklist:
                 raise TokenBlacklistedError()
 
-            if payload.get("token_type") not in ("access", "refresh"):
+            if payload.get("token_type") not in (TokenType.ACCESS.value, TokenType.REFRESH.value):
                 raise TokenValidationError("Invalid token type", "TOKEN_TYPE_INVALID")
 
             return TokenPayload(**payload)
@@ -142,7 +150,7 @@ class JWTAuthenticator:
             "tenant_id": tenant_id,
             "roles": roles or ["context:read"],
             "data_residency": data_residency or ["EU", "US"],
-            "token_type": "access",
+            "token_type": TokenType.ACCESS.value,
         }
 
         token = jwt.encode(
@@ -180,9 +188,9 @@ class JWTAuthenticator:
             "nbf": now,
             "jti": str(uuid.uuid4()),
             "tenant_id": tenant_id,
-            "roles": ["refresh"],
+            "roles": [TokenType.REFRESH.value],
             "data_residency": ["EU", "US"],
-            "token_type": "refresh",
+            "token_type": TokenType.REFRESH.value,
         }
 
         token = jwt.encode(

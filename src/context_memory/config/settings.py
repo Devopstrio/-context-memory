@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     environment: str = Field(default="development", description="Deployment environment")
     port: int = Field(default=8000, ge=1024, le=65535, description="Application port")
-    host: str = Field(default="0.0.0.0", description="Application host")
+    host: str = Field(default="127.0.0.1", description="Application host")
     log_level: str = Field(default="INFO", description="Logging level")
     debug: bool = Field(default=False, description="Debug mode")
 
