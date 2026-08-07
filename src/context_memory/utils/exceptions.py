@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(str, Enum):  # noqa: UP042
     """Standardized error codes for the Context Memory service."""
 
     AUTHENTICATION_FAILED = "AUTH_001"
@@ -51,7 +51,7 @@ class ErrorResponse(BaseModel):
     )
 
 
-class AppException(Exception):
+class AppException(Exception):  # noqa: N818
     """Base application exception with error code."""
 
     def __init__(
@@ -66,6 +66,9 @@ class AppException(Exception):
         self.details = details or {}
         self.status_code = status_code
         super().__init__(message)
+
+
+AppError = AppException
 
 
 class AuthenticationError(AppException):

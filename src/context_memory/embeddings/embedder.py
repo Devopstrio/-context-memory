@@ -182,10 +182,10 @@ class OpenAIEmbedder(Embedder):
                 return embedding
         except httpx.HTTPError as e:
             logger.error("HTTP error generating embedding", error=str(e))
-            raise EmbeddingError(f"HTTP error: {str(e)}")
+            raise EmbeddingError(f"HTTP error: {str(e)}") from e
         except (KeyError, IndexError) as e:
             logger.error("Invalid response format from OpenAI", error=str(e))
-            raise EmbeddingError(f"Invalid response format: {str(e)}")
+            raise EmbeddingError(f"Invalid response format: {str(e)}") from e
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for batch of texts."""
@@ -226,9 +226,9 @@ class OpenAIEmbedder(Embedder):
                 embeddings = [item["embedding"] for item in data["data"]]
                 return embeddings
         except httpx.HTTPError as e:
-            raise EmbeddingError(f"HTTP error: {str(e)}")
+            raise EmbeddingError(f"HTTP error: {str(e)}") from e
         except (KeyError, IndexError) as e:
-            raise EmbeddingError(f"Invalid response format: {str(e)}")
+            raise EmbeddingError(f"Invalid response format: {str(e)}") from e
 
     async def health_check(self) -> bool:
         """Check OpenAI API health."""

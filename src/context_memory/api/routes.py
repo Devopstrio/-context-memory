@@ -153,7 +153,7 @@ async def get_current_user(
 
     try:
         claims = authenticator.decode_and_validate(token)
-    except TokenExpiredError:
+    except TokenExpiredError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ErrorResponse(
@@ -161,7 +161,7 @@ async def get_current_user(
                 message="Access token has expired",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
     except TokenValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -170,7 +170,7 @@ async def get_current_user(
                 message=str(e),
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
     try:
         tenant_guard.verify_tenant_boundary(x_tenant_id, claims)
@@ -182,7 +182,7 @@ async def get_current_user(
                 message=str(e),
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
     return claims
 
@@ -313,7 +313,7 @@ async def create_memory(
                 message="Failed to create memory",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
 
 @router.get(
@@ -367,7 +367,7 @@ async def get_memory(
                 message="Failed to retrieve memory",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
 
 @router.get(
@@ -433,7 +433,7 @@ async def list_session_memories(
                 message="Failed to list memories",
                 correlation_id=getattr(request.state, "correlation_id", None) if request else None,
             ).model_dump(),
-        )
+        ) from e
 
 
 @router.put(
@@ -504,7 +504,7 @@ async def update_memory(
                 message="Failed to update memory",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
 
 @router.delete(
@@ -545,7 +545,7 @@ async def delete_memory(
                 message="Failed to delete memory",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
 
 @router.post(
@@ -606,7 +606,7 @@ async def search_memories(
                 message="Failed to search memories",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e
 
 
 @router.post(
@@ -654,4 +654,4 @@ async def hydrate_session(
                 message="Failed to hydrate session",
                 correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
-        )
+        ) from e

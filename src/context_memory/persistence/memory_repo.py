@@ -40,7 +40,7 @@ class MemoryRepository:
                 and_(
                     Memory.id == memory_id,
                     Memory.tenant_id == tenant_id,
-                    Memory.is_deleted == False,
+                    not Memory.is_deleted,
                 )
             )
         )
@@ -56,7 +56,7 @@ class MemoryRepository:
                 and_(
                     Memory.tenant_id == tenant_id,
                     Memory.session_id == session_id,
-                    Memory.is_deleted == False,
+                    not Memory.is_deleted,
                 )
             )
             .order_by(Memory.created_at.desc())
@@ -69,7 +69,7 @@ class MemoryRepository:
         self, tenant_id: str, memory_type: str | None = None, limit: int = 100, offset: int = 0
     ) -> Sequence[Memory]:
         """Retrieve memories for a tenant with optional type filter."""
-        query = select(Memory).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted == False))
+        query = select(Memory).where(and_(Memory.tenant_id == tenant_id, not Memory.is_deleted))
         if memory_type:
             query = query.where(Memory.memory_type == memory_type)
         query = query.order_by(Memory.updated_at.desc()).limit(limit).offset(offset)
@@ -102,7 +102,7 @@ class MemoryRepository:
                 and_(
                     Memory.id == memory_id,
                     Memory.tenant_id == tenant_id,
-                    Memory.is_deleted == False,
+                    not Memory.is_deleted,
                 )
             )
             .values(**values)
@@ -123,7 +123,7 @@ class MemoryRepository:
                 and_(
                     Memory.id == memory_id,
                     Memory.tenant_id == tenant_id,
-                    Memory.is_deleted == False,
+                    not Memory.is_deleted,
                 )
             )
             .values(
@@ -166,7 +166,7 @@ class MemoryRepository:
     async def count_by_tenant(self, tenant_id: str) -> int:
         """Count total non-deleted memories for a tenant."""
         result = await self.session.execute(
-            select(func.count(Memory.id)).where(and_(Memory.tenant_id == tenant_id, Memory.is_deleted == False))
+            select(func.count(Memory.id)).where(and_(Memory.tenant_id == tenant_id, not Memory.is_deleted))
         )
         return result.scalar_one()
 
@@ -217,7 +217,7 @@ class MemoryRepository:
             .where(
                 and_(
                     Memory.tenant_id == tenant_id,
-                    Memory.is_deleted == False,
+                    not Memory.is_deleted,
                 )
             )
         )
@@ -245,7 +245,7 @@ class MemoryRepository:
                     Memory.tenant_id == tenant_id,
                     Memory.expires_at.isnot(None),
                     Memory.expires_at <= now,
-                    Memory.is_deleted == False,
+                    not Memory.is_deleted,
                 )
             )
             .values(is_deleted=True, updated_at=now)

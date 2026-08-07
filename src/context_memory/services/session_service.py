@@ -57,7 +57,7 @@ class SessionService:
                 message="Failed to ensure session",
                 error_code=ErrorCode.INTERNAL_ERROR,
                 details={"original_error": str(e)},
-            )
+            ) from e
 
     async def get_session(self, tenant_id: str, session_id: str) -> Session | None:
         """Retrieve a session by ID with expiry check."""

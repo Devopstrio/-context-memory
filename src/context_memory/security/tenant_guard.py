@@ -11,7 +11,7 @@ from context_memory.security.jwt_auth import TokenPayload
 logger = structlog.get_logger(__name__)
 
 
-class SecurityBoundaryViolation(Exception):
+class SecurityBoundaryViolation(Exception):  # noqa: N818
     """Exception raised when a cross-tenant boundary violation is detected."""
 
     def __init__(self, message: str, code: str = "ERR-4001", details: dict[str, Any] | None = None) -> None:
@@ -19,6 +19,9 @@ class SecurityBoundaryViolation(Exception):
         self.message = message
         self.code = code
         self.details = details or {}
+
+
+SecurityBoundaryViolationError = SecurityBoundaryViolation
 
 
 class TenantIsolationGuard:

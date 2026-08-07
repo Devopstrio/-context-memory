@@ -116,7 +116,7 @@ class MemoryService:
                 message="Failed to create memory",
                 error_code=ErrorCode.INTERNAL_ERROR,
                 details={"original_error": str(e)},
-            )
+            ) from e
 
     async def get_memory(self, memory_id: uuid.UUID, tenant_id: str) -> Memory | None:
         """Retrieve a memory by ID with tenant isolation."""
@@ -239,7 +239,7 @@ class MemoryService:
                 message="Failed to search memories",
                 error_code=ErrorCode.INTERNAL_ERROR,
                 details={"original_error": str(e)},
-            )
+            ) from e
 
     async def batch_create(
         self,

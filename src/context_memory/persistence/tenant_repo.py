@@ -28,17 +28,14 @@ class TenantRepository:
     async def get_by_id(self, tenant_id: str) -> Tenant | None:
         """Retrieve a tenant by tenant_id."""
         result = await self.session.execute(
-            select(Tenant).where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted == False))
+            select(Tenant).where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
         )
         return result.scalar_one_or_none()
 
     async def get_active_tenants(self, limit: int = 100, offset: int = 0) -> Sequence[Tenant]:
         """Retrieve all active tenants."""
         result = await self.session.execute(
-            select(Tenant)
-            .where(and_(Tenant.status == "active", Tenant.is_deleted == False))
-            .limit(limit)
-            .offset(offset)
+            select(Tenant).where(and_(Tenant.status == "active", not Tenant.is_deleted)).limit(limit).offset(offset)
         )
         return result.scalars().all()
 
@@ -46,7 +43,7 @@ class TenantRepository:
         """Update tenant settings."""
         stmt = (
             update(Tenant)
-            .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted == False))
+            .where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
             .values(settings=settings)
             .returning(Tenant)
         )
@@ -58,7 +55,7 @@ class TenantRepository:
         """Update tenant status."""
         stmt = (
             update(Tenant)
-            .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted == False))
+            .where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
             .values(status=status)
             .returning(Tenant)
         )
@@ -70,7 +67,7 @@ class TenantRepository:
         """Soft delete a tenant."""
         stmt = (
             update(Tenant)
-            .where(and_(Tenant.tenant_id == tenant_id, Tenant.is_deleted == False))
+            .where(and_(Tenant.tenant_id == tenant_id, not Tenant.is_deleted))
             .values(is_deleted=True, status="deleted")
         )
         result = await self.session.execute(stmt)

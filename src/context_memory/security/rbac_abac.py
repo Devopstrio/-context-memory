@@ -1,7 +1,7 @@
 """Role-Based (RBAC) and Attribute-Based (ABAC) Access Control Engine."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import structlog
@@ -12,7 +12,7 @@ from context_memory.security.tenant_guard import SecurityBoundaryViolation
 logger = structlog.get_logger(__name__)
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     """Granular permissions for access control."""
 
     MEMORY_READ = "memory:read"
@@ -34,7 +34,7 @@ class Permission(str, Enum):
     ADMIN_FULL = "admin:*"
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     """Predefined roles with permission sets."""
 
     READER = "reader"
@@ -208,20 +208,22 @@ class RBACABACEngine:
     ) -> None:
         """Evaluate ABAC policies based on request attributes."""
         data_classification = request_attributes.get("data_classification")
-        if data_classification == "RESTRICTED_PHI":
-            if "phi:access" not in claims.roles and Permission.ADMIN_FULL not in permissions:
-                raise SecurityBoundaryViolation(
-                    "ABAC Policy Violation: Accessing RESTRICTED_PHI requires 'phi:access' role",
-                    code="ERR-4001",
-                )
+        if (
+            data_classification == "RESTRICTED_PHI"
+            and "phi:access" not in claims.roles
+            and Permission.ADMIN_FULL not in permissions
+        ):
+            raise SecurityBoundaryViolation(
+                "ABAC Policy Violation: Accessing RESTRICTED_PHI requires 'phi:access' role",
+                code="ERR-4001",
+            )
 
         data_residency = request_attributes.get("data_residency")
-        if data_residency and claims.data_residency:
-            if data_residency not in claims.data_residency:
-                raise SecurityBoundaryViolation(
-                    f"ABAC Policy Violation: Data residency '{data_residency}' not in allowed regions",
-                    code="ERR-4001",
-                )
+        if data_residency and claims.data_residency and data_residency not in claims.data_residency:
+            raise SecurityBoundaryViolation(
+                f"ABAC Policy Violation: Data residency '{data_residency}' not in allowed regions",
+                code="ERR-4001",
+            )
 
         time_restricted = request_attributes.get("time_restricted")
         if time_restricted:

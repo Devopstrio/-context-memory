@@ -60,7 +60,7 @@ class SessionRepository:
                 and_(
                     Session.tenant_id == tenant_id,
                     Session.session_id == session_id,
-                    Session.is_archived == False,
+                    not Session.is_archived,
                 )
             )
         )
@@ -74,7 +74,7 @@ class SessionRepository:
                 and_(
                     Session.tenant_id == tenant_id,
                     Session.status == "active",
-                    Session.is_archived == False,
+                    not Session.is_archived,
                 )
             )
             .order_by(Session.last_active_at.desc())
@@ -145,7 +145,7 @@ class SessionRepository:
                 and_(
                     Session.tenant_id == tenant_id,
                     Session.status == "active",
-                    Session.is_archived == False,
+                    not Session.is_archived,
                 )
             )
         )
@@ -161,7 +161,7 @@ class SessionRepository:
                     Session.tenant_id == tenant_id,
                     Session.expires_at.isnot(None),
                     Session.expires_at <= now,
-                    Session.is_archived == False,
+                    not Session.is_archived,
                 )
             )
             .values(is_archived=True, status="expired", updated_at=now)

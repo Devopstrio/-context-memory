@@ -106,15 +106,15 @@ class JWTAuthenticator:
                 raise TokenValidationError("Invalid token type", "TOKEN_TYPE_INVALID")
 
             return TokenPayload(**payload)
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as e:
             logger.warning("Token expired")
-            raise TokenExpiredError()
+            raise TokenExpiredError() from e
         except jwt.InvalidTokenError as e:
             logger.warning("Invalid token", error=str(e))
-            raise TokenValidationError(f"Invalid token: {str(e)}", "TOKEN_INVALID")
+            raise TokenValidationError(f"Invalid token: {str(e)}", "TOKEN_INVALID") from e
         except Exception as e:
             logger.error("Token validation error", error=str(e))
-            raise TokenValidationError("Token validation failed", "TOKEN_ERROR")
+            raise TokenValidationError("Token validation failed", "TOKEN_ERROR") from e
 
     def create_access_token(
         self,
