@@ -377,11 +377,11 @@ async def get_memory(
     summary="List memories for a session",
 )
 async def list_session_memories(
+    request: Request,
     session_id: str = Query(..., description="Session identifier"),
     page: int = Query(default=1, ge=1, description="Page number"),
     size: int = Query(default=20, ge=1, le=100, description="Page size"),
     memory_type: str | None = Query(default=None, description="Filter by memory type"),
-    request: Request | None = None,
     claims: TokenPayload = Depends(get_current_user),
     memory_service: MemoryService = Depends(get_memory_service),
 ) -> PaginatedResponse:
@@ -432,7 +432,7 @@ async def list_session_memories(
             detail=ErrorResponse(
                 error_code=ErrorCode.INTERNAL_ERROR,
                 message="Failed to list memories",
-                correlation_id=getattr(request.state, "correlation_id", None) if request else None,
+                correlation_id=getattr(request.state, "correlation_id", None),
             ).model_dump(),
         ) from e
 
